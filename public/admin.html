@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Go-AI Admin</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
+    h1 { margin-bottom: 20px; }
+    .card { background: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 20px; max-width: 800px; }
+    label { display: block; margin-bottom: 6px; color: #94a3b8; }
+    input, textarea { width: 100%; padding: 10px; margin-bottom: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; }
+    button { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+    button:hover { background: #2563eb; }
+    .error { color: #f87171; }
+    .success { color: #4ade80; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { padding: 8px; border-bottom: 1px solid #334155; text-align: left; }
+  </style>
+</head>
+<body>
+  <h1>Go-AI Admin Panel</h1>
+  
+  <div class="card" id="login-card">
+    <h2>Đăng nhập Admin</h2>
+    <label>Email</label>
+    <input type="email" id="admin-email" value="admin@go-ai.local" />
+    <label>Mật khẩu</label>
+    <input type="password" id="admin-password" value="admin123" />
+    <button onclick="adminLogin()">Đăng nhập</button>
+    <p id="login-msg" class="error"></p>
+  </div>
+
+  <div id="admin-panel" style="display:none;">
+    <div class="card">
+      <h2>Upload Knowledge Base</h2>
+      <p style="color:#94a3b8; margin-bottom:12px;">Dán nội dung văn bản luật (text thuần) vào đây. Hệ thống sẽ tự chia chunk + tạo embedding.</p>
+      <label>Tiêu đề văn bản</label>
+      <input type="text" id="kb-title" placeholder="Nghị định 35/2022/NĐ-CP..." />
+      <label>Nguồn (tùy chọn)</label>
+      <input type="text" id="kb-source" placeholder="VBHN 9716/2024..." />
+      <label>Nội dung (text)</label>
+      <textarea id="kb-content" rows="12" placeholder="Dán toàn bộ nội dung nghị định/luật vào đây..."></textarea>
+      <button onclick="uploadKB()">Upload & Index</button>
+      <p id="upload-msg"></p>
+    </div>
+
+    <div class="card">
+      <h2>Danh sách KB đã upload</h2>
+      <button onclick="loadKBList()">Làm mới</button>
+      <table>
+        <thead><tr><th>ID</th><th>Tiêu đề</th><th>Nguồn</th><th>Ngày</th></tr></thead>
+        <tbody id="kb-list"></tbody>
+      </table>
+    </div>
+
+    <button onclick="logoutAdmin()" style="background:#475569; margin-top:20px;">Đăng xuất</button>
+  </div>
+
+  <script>
+    const API_BASE = "https://go-ai-chatbot.<your-subdomain>.workers.dev";
+    let token = localStorage.getItem("goai_admin_token");
+
+    if (token) showPanel();
+
+    async function adminLogin() {
+      const email = document.getElementById("admin-email").value;
+      const password = document.getElementById("admin-password").value;
+      const msg = document.getElementById("login-msg");
+      try {
+        const res = await fetch(API_BASE + "/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!data.success || data.user.role !== "admin") {
+          msg.textContent = data.error || "Không phải tài khoản admin";
+          return;
+        }
+        token = data.token;
+        localStorage.setItem("goai_admin_token", token);
+        showPanel();
+      } catch (e) {
+        msg.textContent = "Lỗi kết nối";
+      }
+    }
+
+    function showPanel() {
+      document.getElementById("login-card").style.display = "none";
+      document.getElementById("admin-panel").style.display = "block";
+      loadKBList();
+    }
+
+    function logoutAdmin() {
+      localStorage.removeItem("goai_admin_token");
+      location.reload();
+    }
+
+    async function uploadKB() {
+      const title = document.getElementById("kb-title").value.trim();
+      const source = document.getElementById("kb-source").value.trim();
+      const content = document.getElementById("kb-content").value.trim();
+      const msg = document.getElementById("upload-msg");
+      msg.className = "";
+      msg.textContent = "Đang xử lý... (có thể mất vài chục giây)";
+
+      try {
+        const res = await fetch(API_BASE + "/api/admin/upload-kb", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token,
+          },
+          body: JSON.stringify({ title, source, content }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          msg.className = "success";
+          msg.textContent = `Thành công! Đã index ${data.chunks_inserted}/${data.total_chunks} đoạn.`;
+          document.getElementById("kb-content").value = "";
+          loadKBList();
+        } else {
+          msg.className = "error";
+          msg.textContent = data.error || "Lỗi";
+        }
+      } catch (e) {
+        msg.className = "error";
+        msg.textContent = "Lỗi kết nối hoặc timeout";
+      }
+    }
+
+    async function loadKBList() {
+      try {
+        const res = await fetch(API_BASE + "/api/admin/list-kb", {
+          headers: { Authorization: "Bearer " + token },
+        });
+        const data = await res.json();
+        const tbody = document.getElementById("kb-list");
+        tbody.innerHTML = "";
+        (data.documents || []).forEach(d => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td>${d.id}</td><td>${d.title}</td><td>${d.source || ""}</td><td>${d.created_at}</td>`;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {}
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+{
+  "name": "go-ai-chatbot",
+  "version": "1.0.0",
+  "description": "Demo chatbot tư vấn pháp luật KCN trên Cloudflare",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "db:init": "wrangler d1 execute go-ai-db --file=./schema.sql",
+    "pages:deploy": "wrangler pages deploy public --project-name=go-ai-frontend"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

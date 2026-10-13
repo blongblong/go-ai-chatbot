@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Go-AI Chatbot - Tư vấn pháp luật KCN</title>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="icon" href="/icon-192.png" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      background: #1e293b;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #334155;
+    }
+    .header h1 { font-size: 1.25rem; font-weight: 600; }
+    .header .user-info { font-size: 0.875rem; color: #94a3b8; }
+    .header button {
+      background: #334155;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    .header button:hover { background: #475569; }
+
+    #login-screen, #chat-screen {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    #login-screen {
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .login-box {
+      background: #1e293b;
+      padding: 32px;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }
+    .login-box h2 { margin-bottom: 8px; text-align: center; }
+    .login-box p { text-align: center; color: #94a3b8; margin-bottom: 24px; font-size: 0.9rem; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; margin-bottom: 6px; font-size: 0.875rem; color: #cbd5e1; }
+    .form-group input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      background: #0f172a;
+      color: white;
+      font-size: 1rem;
+    }
+    .form-group input:focus { outline: none; border-color: #3b82f6; }
+    .btn-primary {
+      width: 100%;
+      padding: 12px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-secondary {
+      width: 100%;
+      padding: 10px;
+      background: transparent;
+      color: #94a3b8;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      margin-top: 12px;
+      cursor: pointer;
+    }
+    .error-msg { color: #f87171; font-size: 0.875rem; margin-top: 12px; text-align: center; }
+
+    /* Chat UI */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .message {
+      max-width: 80%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+    .message.user {
+      background: #3b82f6;
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+    }
+    .message.assistant {
+      background: #1e293b;
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+      border: 1px solid #334155;
+    }
+    .message .source {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      margin-top: 8px;
+    }
+    .input-area {
+      padding: 16px 20px;
+      background: #1e293b;
+      border-top: 1px solid #334155;
+      display: flex;
+      gap: 12px;
+    }
+    .input-area textarea {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      background: #0f172a;
+      color: white;
+      resize: none;
+      font-family: inherit;
+      font-size: 1rem;
+      min-height: 48px;
+      max-height: 120px;
+    }
+    .input-area textarea:focus { outline: none; border-color: #3b82f6; }
+    .input-area button {
+      padding: 0 20px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .input-area button:disabled { background: #475569; cursor: not-allowed; }
+    .typing { color: #94a3b8; font-style: italic; }
+  </style>
+</head>
+<body>
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen">
+    <div class="login-box">
+      <h2>Go-AI Chatbot</h2>
+      <p>Tư vấn pháp luật dành cho doanh nghiệp KCN</p>
+      
+      <div id="login-form">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="login-email" placeholder="email@example.com" />
+        </div>
+        <div class="form-group">
+          <label>Mật khẩu</label>
+          <input type="password" id="login-password" placeholder="••••••••" />
+        </div>
+        <button class="btn-primary" onclick="doLogin()">Đăng nhập</button>
+        <button class="btn-secondary" onclick="showRegister()">Chưa có tài khoản? Đăng ký</button>
+        <div id="login-error" class="error-msg"></div>
+      </div>
+
+      <div id="register-form" style="display:none;">
+        <div class="form-group">
+          <label>Họ tên</label>
+          <input type="text" id="reg-name" placeholder="Nguyễn Văn A" />
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="reg-email" placeholder="email@example.com" />
+        </div>
+        <div class="form-group">
+          <label>Mật khẩu</label>
+          <input type="password" id="reg-password" placeholder="••••••••" />
+        </div>
+        <button class="btn-primary" onclick="doRegister()">Đăng ký</button>
+        <button class="btn-secondary" onclick="showLogin()">Đã có tài khoản? Đăng nhập</button>
+        <div id="reg-error" class="error-msg"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAT SCREEN -->
+  <div id="chat-screen" style="display:none;">
+    <div class="header">
+      <h1>Go-AI • Tư vấn KCN</h1>
+      <div>
+        <span class="user-info" id="user-display"></span>
+        <button onclick="logout()">Đăng xuất</button>
+      </div>
+    </div>
+    <div id="messages"></div>
+    <div class="input-area">
+      <textarea id="user-input" placeholder="Hỏi về nghị định, ưu đãi, thủ tục KCN..." rows="1"></textarea>
+      <button id="send-btn" onclick="sendMessage()">Gửi</button>
+    </div>
+  </div>
+
+  <script>
+    // ========== CẤU HÌNH ==========
+    // Thay bằng URL Worker thật sau khi deploy
+    const API_BASE = "https://go-ai-chatbot.<your-subdomain>.workers.dev";  
+    // Ví dụ: https://go-ai-chatbot.abc123.workers.dev
+
+    let token = localStorage.getItem("goai_token");
+    let currentUser = JSON.parse(localStorage.getItem("goai_user") || "null");
+    let sessionId = null;
+
+    // Kiểm tra đã login chưa
+    if (token && currentUser) {
+      showChat();
+    }
+
+    function showLogin() {
+      document.getElementById("login-form").style.display = "block";
+      document.getElementById("register-form").style.display = "none";
+    }
+    function showRegister() {
+      document.getElementById("login-form").style.display = "none";
+      document.getElementById("register-form").style.display = "block";
+    }
+
+    async function doLogin() {
+      const email = document.getElementById("login-email").value.trim();
+      const password = document.getElementById("login-password").value;
+      const errEl = document.getElementById("login-error");
+      errEl.textContent = "";
+
+      try {
+        const res = await fetch(API_BASE + "/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!data.success) {
+          errEl.textContent = data.error || "Đăng nhập thất bại";
+          return;
+        }
+        token = data.token;
+        currentUser = data.user;
+        localStorage.setItem("goai_token", token);
+        localStorage.setItem("goai_user", JSON.stringify(currentUser));
+        showChat();
+      } catch (e) {
+        errEl.textContent = "Không kết nối được server. Kiểm tra API_BASE.";
+      }
+    }
+
+    async function doRegister() {
+      const full_name = document.getElementById("reg-name").value.trim();
+      const email = document.getElementById("reg-email").value.trim();
+      const password = document.getElementById("reg-password").value;
+      const errEl = document.getElementById("reg-error");
+      errEl.textContent = "";
+
+      try {
+        const res = await fetch(API_BASE + "/api/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, full_name }),
+        });
+        const data = await res.json();
+        if (!data.success) {
+          errEl.textContent = data.error || "Đăng ký thất bại";
+          return;
+        }
+        errEl.style.color = "#4ade80";
+        errEl.textContent = "Đăng ký thành công! Đang chuyển sang đăng nhập...";
+        setTimeout(() => {
+          showLogin();
+          document.getElementById("login-email").value = email;
+        }, 1500);
+      } catch (e) {
+        errEl.textContent = "Không kết nối được server.";
+      }
+    }
+
+    function showChat() {
+      document.getElementById("login-screen").style.display = "none";
+      document.getElementById("chat-screen").style.display = "flex";
+      document.getElementById("user-display").textContent = currentUser.full_name || currentUser.email;
+      addMessage("assistant", "Xin chào! Tôi là trợ lý AI của Go-AI, chuyên tư vấn pháp luật về khu công nghiệp và doanh nghiệp sản xuất. Bạn cần hỗ trợ gì?");
+    }
+
+    function logout() {
+      localStorage.removeItem("goai_token");
+      localStorage.removeItem("goai_user");
+      token = null;
+      currentUser = null;
+      sessionId = null;
+      document.getElementById("chat-screen").style.display = "none";
+      document.getElementById("login-screen").style.display = "flex";
+      document.getElementById("messages").innerHTML = "";
+    }
+
+    function addMessage(role, content, sources = false) {
+      const div = document.createElement("div");
+      div.className = "message " + role;
+      div.textContent = content;
+      if (sources) {
+        const src = document.createElement("div");
+        src.className = "source";
+        src.textContent = "✓ Đã sử dụng Knowledge Base";
+        div.appendChild(src);
+      }
+      document.getElementById("messages").appendChild(div);
+      document.getElementById("messages").scrollTop = document.getElementById("messages").scrollHeight;
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById("user-input");
+      const text = input.value.trim();
+      if (!text) return;
+
+      input.value = "";
+      addMessage("user", text);
+      document.getElementById("send-btn").disabled = true;
+
+      const typing = document.createElement("div");
+      typing.className = "message assistant typing";
+      typing.id = "typing";
+      typing.textContent = "Đang suy nghĩ...";
+      document.getElementById("messages").appendChild(typing);
+
+      try {
+        const res = await fetch(API_BASE + "/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token,
+          },
+          body: JSON.stringify({ message: text, session_id: sessionId }),
+        });
+        const data = await res.json();
+        document.getElementById("typing")?.remove();
+
+        if (data.success) {
+          sessionId = data.session_id;
+          addMessage("assistant", data.reply, data.sources_used);
+        } else {
+          addMessage("assistant", "Lỗi: " + (data.error || "Không thể trả lời"));
+        }
+      } catch (e) {
+        document.getElementById("typing")?.remove();
+        addMessage("assistant", "Không kết nối được server.");
+      }
+      document.getElementById("send-btn").disabled = false;
+    }
+
+    // Enter để gửi
+    document.getElementById("user-input")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+</html>

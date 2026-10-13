@@ -1,0 +1,29 @@
+name = "go-ai-chatbot"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database (users + chat history)
+[[d1_databases]]
+binding = "DB"
+database_name = "go-ai-db"
+database_id = "REPLACE_WITH_YOUR_D1_ID"   # Chạy: wrangler d1 create go-ai-db
+
+# Vectorize (Knowledge Base)
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "go-ai-kb"
+
+# R2 (lưu file gốc PDF/text)
+[[r2_buckets]]
+binding = "R2"
+bucket_name = "go-ai-kb-files"
+
+# Workers AI
+[ai]
+binding = "AI"
+
+# Biến môi trường (tùy chọn)
+[vars]
+ENVIRONMENT = "demo"
+ADMIN_EMAIL = "admin@go-ai.local"   # Email admin mặc định
